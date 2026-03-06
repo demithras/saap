@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "saap"
+version = "0.1.0"
+description = "Scientific Approach Automation Pipeline"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "demithras" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "icontract>=2.7",
+    "icontract-hypothesis>=1.1",
+    "hypothesis>=6.0,<6.100",
+    "crosshair-tool>=0.0.60",
+]
+
+[project.optional-dependencies]
+mutation = [
+    "mutmut>=3.0",
+]
+docs = [
+    "quarto-cli",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "saap[mutation]",
+]
+
+[project.scripts]
+saap = "saap.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/saap"]
+
+[tool.ruff]
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["saap"]
+
+[tool.coverage.report]
+show_missing = true
