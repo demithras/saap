@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import importlib
 import inspect
-import sys
 import time
 from pathlib import Path
 from typing import Any
 
 from saap.runners._base import RunResult
+from saap.runners._loader import load_module_from_path
 
 
 class HypothesisRunner:
@@ -30,25 +29,12 @@ class HypothesisRunner:
         details: dict[str, Any] = {"tested": 0, "passed": 0, "failed": 0}
 
         module_name = target.stem
-        spec_path = str(target.resolve())
 
         try:
             import icontract
             import icontract_hypothesis
 
-            spec = importlib.util.spec_from_file_location(module_name, spec_path)
-            if spec is None or spec.loader is None:
-                return RunResult(
-                    runner=self.name,
-                    success=False,
-                    duration_s=time.monotonic() - start,
-                    summary=f"Could not load module spec from {target}",
-                    errors=[f"Invalid module path: {target}"],
-                )
-
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
+            module = load_module_from_path(target)
 
             functions = [
                 (name, obj)
