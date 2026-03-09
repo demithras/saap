@@ -1,0 +1,22 @@
+---
+title: "SAAP Verification Report: {TARGET}"
+date: "{DATE}"
+format:
+  html:
+    toc: true
+    theme: cosmo
+---
+
+## Summary
+
+**Target**: `{TARGET}` | **Tier**: {TIER} | **Context**: {CONTEXT}
+
+{SUMMARY_TABLE}
+
+## Runner Details
+
+{RUNNER_DETAILS}
+
+## Verdict
+
+{VERDICT}
