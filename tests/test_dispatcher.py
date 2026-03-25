@@ -47,6 +47,13 @@ def build_ffi():
     return ffi
 """
 
+C_EXTENSION_NO_CONTRACTS = """\
+import ctypes
+
+def read_memory(ptr):
+    return ctypes.string_at(ptr, 8)
+"""
+
 CRITICAL_FUNC_SOURCE = """\
 from icontract import require
 
@@ -170,3 +177,73 @@ class TestDispatch:
         result = dispatch(src, context="audit")
         # Audit forces tier 3; mutmut off by default
         assert result == ["icontract", "hypothesis", "crosshair"]
+
+
+# ---------------------------------------------------------------------------
+# Bug fixes: tier range validation (H1)
+# ---------------------------------------------------------------------------
+
+class TestTierRangeValidation:
+    def test_invalid_default_tier_raises(self):
+        with pytest.raises(ValueError, match="default_tier must be 1, 2, or 3"):
+            SaapConfig(default_tier=5)
+
+    def test_invalid_zero_tier_raises(self):
+        with pytest.raises(ValueError, match="default_tier must be 1, 2, or 3"):
+            SaapConfig(default_tier=0)
+
+    def test_valid_tiers_accepted(self):
+        for t in (1, 2, 3):
+            config = SaapConfig(default_tier=t)
+            assert config.default_tier == t
+
+
+# ---------------------------------------------------------------------------
+# Bug fixes: critical files without contracts (H2)
+# ---------------------------------------------------------------------------
+
+class TestCriticalWithoutContracts:
+    def test_ctypes_without_contracts_gets_tier3(self, tmp_path: Path):
+        src = _write(tmp_path, "mod.py", C_EXTENSION_NO_CONTRACTS)
+        assert detect_tier(src) == 3
+
+    def test_critical_function_without_contracts_gets_tier3(self, tmp_path: Path):
+        src = _write(
+            tmp_path, "mod.py",
+            "def process_payment(amount):\n    return amount\n",
+        )
+        config = SaapConfig(
+            critical=CriticalConfig(functions=["process_payment"]),
+        )
+        assert detect_tier(src, config=config) == 3
+
+    def test_critical_module_without_contracts_gets_tier3(self, tmp_path: Path):
+        src = _write(tmp_path, "payments/core.py", PLAIN_SOURCE)
+        config = SaapConfig(
+            critical=CriticalConfig(modules=["payments"]),
+        )
+        assert detect_tier(src, config=config) == 3
+
+
+# ---------------------------------------------------------------------------
+# Bug fixes: empty audit dispatch guard (H3)
+# ---------------------------------------------------------------------------
+
+class TestEmptyDispatchGuard:
+    def test_audit_with_all_disabled_returns_minimum(self, tmp_path: Path):
+        src = _write(tmp_path, "mod.py", PLAIN_SOURCE)
+        config = SaapConfig(runners=RunnersConfig(
+            icontract=False, hypothesis=False,
+            crosshair=False, mutmut=False,
+        ))
+        result = dispatch(src, context="audit", config=config)
+        assert result == ["icontract"]
+
+    def test_manual_with_all_disabled_returns_empty(self, tmp_path: Path):
+        src = _write(tmp_path, "mod.py", PLAIN_SOURCE)
+        config = SaapConfig(runners=RunnersConfig(
+            icontract=False, hypothesis=False,
+            crosshair=False, mutmut=False,
+        ))
+        result = dispatch(src, context="manual", config=config)
+        assert result == []

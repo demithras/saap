@@ -38,6 +38,12 @@ class SaapConfig:
     report: ReportConfig = field(default_factory=ReportConfig)
     config_path: Path | None = None
 
+    def __post_init__(self):
+        if self.default_tier not in (1, 2, 3):
+            raise ValueError(
+                f"default_tier must be 1, 2, or 3, got {self.default_tier}"
+            )
+
 
 def _find_config(start: Path) -> Path | None:
     current = start.resolve()

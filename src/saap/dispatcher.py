@@ -114,20 +114,20 @@ def detect_tier(
     source = source_path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(source_path))
 
-    # Start from config default
-    tier = config.default_tier
+    # Start from config default (clamped to valid range)
+    tier = max(1, min(config.default_tier, 3))
 
-    # No contracts → tier 1 only
-    if not _has_icontract_decorators(tree):
+    # Critical signals take priority — even without contracts
+    is_critical = (
+        _imports_c_extensions(tree)
+        or _has_critical_functions(tree, config.critical.functions)
+        or _is_critical_module(source_path, config.critical.modules)
+    )
+
+    if is_critical:
+        tier = 3
+    elif not _has_icontract_decorators(tree):
         tier = 1
-    else:
-        # C extensions or critical code → tier 3
-        if _imports_c_extensions(tree):
-            tier = 3
-        if _has_critical_functions(tree, config.critical.functions):
-            tier = 3
-        if _is_critical_module(source_path, config.critical.modules):
-            tier = 3
 
     # Apply context ceiling
     if max_tier is not None:
@@ -166,4 +166,10 @@ def dispatch(
         "mutmut": runners_cfg.mutmut,
     }
 
-    return [r for r in all_runners if enabled.get(r, False)]
+    runners = [r for r in all_runners if enabled.get(r, False)]
+
+    # Audit must always run at least icontract
+    if context == "audit" and not runners:
+        runners = ["icontract"]
+
+    return runners
